@@ -10,11 +10,13 @@
 :root {
   --bg: #ffffff;
   --text: #ffd1e8;
+  --glow: rgba(255, 182, 213, 0.9);
 }
 
 [data-theme="dark"] {
   --bg: #0b0b0b;
   --text: #ff8fc7;
+  --glow: rgba(255, 143, 199, 0.9);
 }
 
 body {
@@ -30,10 +32,22 @@ body {
 
 .calendar {
   text-align: center;
+  width: min(520px, 92vw);
 }
 
 .month {
   margin-bottom: 10px;
+  text-shadow: 0 0 6px var(--glow);
+  font-size: 12px;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  font-size: 9px;
+  opacity: 0.65;
+  margin-bottom: 8px;
 }
 
 .grid {
@@ -43,35 +57,89 @@ body {
   font-size: 10px;
 }
 
+.day {
+  position: relative;
+  padding: 10px 0;
+  border-radius: 12px;
+  opacity: 0.9;
+}
+
+/* 💗 Today: heart "circle" */
 .today {
-  text-shadow: 0 0 6px currentColor;
+  opacity: 1;
+  text-shadow: 0 0 6px var(--glow);
+}
+
+.today::before {
+  content: "♡";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -52%);
+  font-size: 28px;          /* heart size */
+  line-height: 1;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 6px var(--glow));
+  pointer-events: none;
+}
+
+/* keep number readable above heart */
+.today span {
+  position: relative;
+  z-index: 1;
+}
+
+.divider {
+  border-top: 2px dashed currentColor;
+  margin: 12px 0 0;
+  opacity: 0.55;
 }
 </style>
 </head>
 
 <body>
-<div class="calendar" id="calendar"></div>
+  <div class="calendar" id="calendar"></div>
 
 <script>
 const now = new Date();
+
+// Auto dark theme at night (matches your clock vibe)
 const hour = now.getHours();
 if (hour >= 18 || hour < 6) {
   document.documentElement.dataset.theme = "dark";
 }
 
 const cal = document.getElementById("calendar");
-const month = now.toLocaleString("default", { month: "long" });
+const monthName = now.toLocaleString("default", { month: "long" }).toUpperCase();
 const year = now.getFullYear();
-const firstDay = new Date(year, now.getMonth(), 1).getDay();
-const days = new Date(year, now.getMonth() + 1, 0).getDate();
+const monthIndex = now.getMonth();
+const todayDate = now.getDate();
 
-let html = `<div class="month">${month.toUpperCase()} ${year}</div><div class="grid">`;
-for (let i = 0; i < firstDay; i++) html += `<div></div>`;
-for (let d = 1; d <= days; d++) {
-  html += `<div class="${d === now.getDate() ? "today" : ""}">${d}</div>`;
+const firstDay = new Date(year, monthIndex, 1).getDay(); // 0=Sun
+const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+
+const weekdayLabels = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+
+let html = `
+  <div class="month">${monthName} ${year}</div>
+  <div class="weekdays">
+    ${weekdayLabels.map(d => `<div>${d}</div>`).join("")}
+  </div>
+  <div class="grid">
+`;
+
+// blank cells before the 1st
+for (let i = 0; i < firstDay; i++) {
+  html += `<div class="day"></div>`;
 }
-html += `</div>`;
 
+// days
+for (let d = 1; d <= daysInMonth; d++) {
+  const cls = d === todayDate ? "day today" : "day";
+  html += `<div class="${cls}"><span>${d}</span></div>`;
+}
+
+html += `</div><div class="divider"></div>`;
 cal.innerHTML = html;
 </script>
 </body>
