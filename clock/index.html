@@ -10,12 +10,37 @@
 [data-theme="dark"] { --bg:#0b0b0b; --text:#ff8fc7; --glow: rgba(255,143,199,.9); }
 
 body{ margin:0; background:var(--bg); display:flex; justify-content:center; align-items:center; height:100vh; }
-.widget{ font-family:'Press Start 2P', monospace; color:var(--text); text-align:center; animation:flicker 2.8s infinite; }
+.widget{ font-family:'Press Start 2P', monospace; color:var(--text); text-align:center; animation:flicker 2.8s infinite; width:min(520px, 92vw); }
 .time{ font-size:44px; text-shadow:0 0 6px var(--glow); }
 .ampm{ font-size:10px; opacity:.6; }
 .divider{ border-top:2px dashed currentColor; margin:12px 0; opacity:.6; }
 .info{ font-size:11px; line-height:1.7; }
-.controls{ font-size:10px; opacity:.55; cursor:pointer; margin-top:8px; user-select:none; }
+.controls{ font-size:10px; opacity:.6; cursor:pointer; margin-top:8px; user-select:none; }
+.row{ display:flex; gap:8px; justify-content:center; align-items:center; margin-top:10px; flex-wrap:wrap; }
+
+input{
+  font-family:'Press Start 2P', monospace;
+  font-size:10px;
+  padding:8px 10px;
+  border:2px dashed currentColor;
+  background:transparent;
+  color:var(--text);
+  outline:none;
+  width:min(260px, 72vw);
+}
+button{
+  font-family:'Press Start 2P', monospace;
+  font-size:10px;
+  padding:8px 10px;
+  border:2px dashed currentColor;
+  background:transparent;
+  color:var(--text);
+  cursor:pointer;
+}
+button:active{ transform: translateY(1px); }
+
+.small{ font-size:9px; opacity:.55; margin-top:8px; }
+
 @keyframes flicker{ 0%{opacity:1} 6%{opacity:.85} 12%{opacity:1} 100%{opacity:1} }
 </style>
 </head>
@@ -31,6 +56,12 @@ body{ margin:0; background:var(--bg); display:flex; justify-content:center; alig
   <div class="info" id="city">LOCATING…</div>
   <div class="info" id="weather">--°</div>
 
+  <div class="row">
+    <input id="cityInput" placeholder="type a city (ex: Tampa, FL)" autocomplete="off" />
+    <button id="setCityBtn">♡ set</button>
+  </div>
+  <div class="small" id="status">Tip: Notion may block GPS—manual city always works.</div>
+
   <div class="divider"></div>
 
   <div class="info" style="opacity:.4;">YAZMING made this</div>
@@ -42,6 +73,7 @@ body{ margin:0; background:var(--bg); display:flex; justify-content:center; alig
 let unit = "F";
 let lastTempC = null;
 let lastCode = null;
+let lastCityLabel = null;
 
 function toggleTheme(){
   document.documentElement.dataset.theme =
@@ -70,19 +102,25 @@ function updateWeatherDisplay(){
   if(lastTempC == null) return;
   const temp = unit === "F" ? Math.round(lastTempC*9/5 + 32) : Math.round(lastTempC);
   document.getElementById("weather").textContent = `${icons[lastCode] || "♡"} ${temp}°${unit}`;
+  if (lastCityLabel) document.getElementById("city").textContent = lastCityLabel.toUpperCase();
 }
 
-/** Fetch weather + city using lat/lon (Open-Meteo) */
-async function loadFromCoords(lat, lon){
-  // City (reverse geocode)
-  try{
-    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&count=1`);
-    const geo = await geoRes.json();
-    const name = geo?.results?.[0]?.name;
-    document.getElementById("city").textContent = name ? name.toUpperCase() : "UNKNOWN";
-  } catch {
-    document.getElementById("city").textContent = "UNKNOWN";
+function setStatus(msg){
+  document.getElementById("status").textContent = msg;
+}
+
+async function loadFromCoords(lat, lon, labelOverride=null){
+  // City label
+  if (!labelOverride){
+    try{
+      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&count=1`);
+      const geo = await geoRes.json();
+      labelOverride = geo?.results?.[0]?.name || "UNKNOWN";
+    } catch {
+      labelOverride = "UNKNOWN";
+    }
   }
+  lastCityLabel = labelOverride;
 
   // Weather
   const weatherRes = await fetch(
@@ -93,55 +131,100 @@ async function loadFromCoords(lat, lon){
   lastCode = weather.current.weather_code;
   updateWeatherDisplay();
 
-  // Auto dark theme at night or gloomy weather
+  // Auto dark theme
   const hour = new Date().getHours();
   if (hour >= 18 || hour < 6 || lastCode >= 3) document.documentElement.dataset.theme = "dark";
+
+  setStatus("Loaded: location + weather ✓");
 }
 
-/** Fallback: IP-based approx location (works inside Notion embeds) */
 async function loadFromIP(){
-  // ipapi.co is simple + no key; if it ever fails, you'll just see UNKNOWN.
   const ipRes = await fetch("https://ipapi.co/json/");
   const ip = await ipRes.json();
   if (!ip || ip.latitude == null || ip.longitude == null) throw new Error("IP location unavailable");
-  await loadFromCoords(ip.latitude, ip.longitude);
+  const label = ip.city || ip.region || ip.country_name || "UNKNOWN";
+  await loadFromCoords(ip.latitude, ip.longitude, label);
 }
 
-/** Try GPS first; if blocked, fall back to IP */
-function loadLocationAndWeather(){
-  // show a friendlier status
+function loadAuto(){
   document.getElementById("city").textContent = "LOCATING…";
   document.getElementById("weather").textContent = "--°";
+  setStatus("Trying GPS… (Notion may block it)");
 
   const geoTimeout = setTimeout(async () => {
-    // if geolocation hangs (common in Notion), use IP fallback
-    try { await loadFromIP(); }
-    catch { document.getElementById("city").textContent = "LOCATION BLOCKED"; }
-  }, 2500);
+    // If geolocation hangs (common in Notion), use IP fallback
+    try {
+      setStatus("GPS blocked—using IP location…");
+      await loadFromIP();
+    } catch {
+      setStatus("Location blocked. Use manual city search ↓");
+      document.getElementById("city").textContent = "LOCATION BLOCKED";
+    }
+  }, 2200);
 
   if (!navigator.geolocation){
     clearTimeout(geoTimeout);
-    loadFromIP().catch(() => document.getElementById("city").textContent = "LOCATION BLOCKED");
+    loadFromIP().catch(() => {
+      setStatus("Location blocked. Use manual city search ↓");
+      document.getElementById("city").textContent = "LOCATION BLOCKED";
+    });
     return;
   }
 
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       clearTimeout(geoTimeout);
+      setStatus("GPS allowed—loading weather…");
       await loadFromCoords(pos.coords.latitude, pos.coords.longitude);
     },
     async () => {
       clearTimeout(geoTimeout);
-      // permission denied / blocked
-      try { await loadFromIP(); }
-      catch { document.getElementById("city").textContent = "LOCATION BLOCKED"; }
+      try {
+        setStatus("GPS denied—using IP location…");
+        await loadFromIP();
+      } catch {
+        setStatus("Location blocked. Use manual city search ↓");
+        document.getElementById("city").textContent = "LOCATION BLOCKED";
+      }
     },
     { enableHighAccuracy:false, timeout:2000, maximumAge:600000 }
   );
 }
 
-loadLocationAndWeather();
+/* 📝 Manual city search (no API keys) */
+async function setManualCity(query){
+  if (!query || !query.trim()) return;
+  setStatus(`Searching: "${query}"…`);
+  document.getElementById("city").textContent = "SEARCHING…";
+  document.getElementById("weather").textContent = "--°";
+
+  // Forward geocode
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`;
+  const res = await fetch(url);
+  const data = await res.json();
+
+  const r = data?.results?.[0];
+  if (!r){
+    setStatus("Not found. Try: City, State (ex: Tampa, FL)");
+    document.getElementById("city").textContent = "NOT FOUND";
+    return;
+  }
+
+  const label = [r.name, r.admin1, r.country].filter(Boolean).join(", ");
+  await loadFromCoords(r.latitude, r.longitude, label);
+}
+
+document.getElementById("setCityBtn").addEventListener("click", () => {
+  setManualCity(document.getElementById("cityInput").value);
+});
+document.getElementById("cityInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") setManualCity(e.target.value);
+});
+
+// Start
+loadAuto();
 </script>
 </body>
 </html>
+
 
