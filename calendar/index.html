@@ -7,117 +7,147 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
 <style>
-:root {
-  --bg: #ffffff;
-  --text: #ffd1e8;
-  --glow: rgba(255, 182, 213, 0.9);
+:root{
+  --bg:#ffffff;
+  --text:#ffd1e8;
+  --glow: rgba(255,182,213,.9);
+  --heart: rgba(255,209,232,.9);
+  --numplate: rgba(255,255,255,.55); /* light mode backing */
 }
 
-[data-theme="dark"] {
-  --bg: #0b0b0b;
-  --text: #ff8fc7;
-  --glow: rgba(255, 143, 199, 0.9);
+[data-theme="dark"]{
+  --bg:#0b0b0b;
+  --text:#ff8fc7;
+  --glow: rgba(255,143,199,.9);
+  --heart: rgba(255,143,199,.85);
+  --numplate: rgba(0,0,0,.55); /* dark mode backing */
 }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Press Start 2P', monospace;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Press Start 2P', monospace;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
 }
 
-.calendar {
-  text-align: center;
-  width: min(520px, 92vw);
+.calendar{
+  text-align:center;
+  width:min(520px, 92vw);
 }
 
-.month {
-  margin-bottom: 10px;
-  text-shadow: 0 0 6px var(--glow);
-  font-size: 12px;
+.month{
+  margin-bottom:10px;
+  text-shadow:0 0 6px var(--glow);
+  font-size:12px;
 }
 
-.weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  font-size: 9px;
-  opacity: 0.65;
-  margin-bottom: 8px;
+.weekdays{
+  display:grid;
+  grid-template-columns:repeat(7, 1fr);
+  gap:6px;
+  font-size:9px;
+  opacity:.65;
+  margin-bottom:8px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  font-size: 10px;
+.grid{
+  display:grid;
+  grid-template-columns:repeat(7, 1fr);
+  gap:6px;
+  font-size:10px;
 }
 
-.day {
-  position: relative;
-  padding: 10px 0;
-  border-radius: 12px;
-  opacity: 0.9;
+.day{
+  position:relative;
+  padding:12px 0; /* a touch more room for the heart */
+  border-radius:12px;
+  opacity:.9;
 }
 
-/* 💗 Today: heart "circle" */
-.today {
-  opacity: 1;
-  text-shadow: 0 0 6px var(--glow);
+.day span{
+  position:relative;
+  z-index:3;
 }
 
-.today::before {
-  content: "♡";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -52%);
-  font-size: 28px;          /* heart size */
-  line-height: 1;
-  opacity: 0.85;
+/* 💗 Today highlight */
+.today{
+  opacity:1;
+  text-shadow:0 0 6px var(--glow);
+}
+
+/* Heart outline behind */
+.today::before{
+  content:"♡";
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -52%);
+  font-size:38px;          /* larger = wraps the number better */
+  line-height:1;
+  color:var(--heart);
+  opacity:.95;
+  z-index:1;
   filter: drop-shadow(0 0 6px var(--glow));
-  pointer-events: none;
+  pointer-events:none;
 }
 
-/* keep number readable above heart */
-.today span {
-  position: relative;
-  z-index: 1;
+/* Little “number plate” so the date stays super readable */
+.today::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  width:26px;
+  height:18px;
+  border-radius:8px;
+  background: var(--numplate);
+  z-index:2; /* sits above heart, below number */
+  box-shadow: 0 0 8px var(--glow);
+  pointer-events:none;
 }
 
-.divider {
-  border-top: 2px dashed currentColor;
-  margin: 12px 0 0;
-  opacity: 0.55;
+/* controls */
+.controls{
+  font-size:10px;
+  opacity:.6;
+  cursor:pointer;
+  user-select:none;
+  margin-top:10px;
+}
+
+.divider{
+  border-top:2px dashed currentColor;
+  margin:12px 0 0;
+  opacity:.55;
 }
 </style>
 </head>
 
 <body>
-  <div class="calendar" id="calendar"></div>
+<div class="calendar" id="calendar"></div>
 
 <script>
 const now = new Date();
-
-// Auto dark theme at night (matches your clock vibe)
 const hour = now.getHours();
-if (hour >= 18 || hour < 6) {
-  document.documentElement.dataset.theme = "dark";
+document.documentElement.dataset.theme = (hour >= 18 || hour < 6) ? "dark" : "light";
+
+function toggleTheme(){
+  document.documentElement.dataset.theme =
+    document.documentElement.dataset.theme === "dark" ? "light" : "dark";
 }
 
-const cal = document.getElementById("calendar");
 const monthName = now.toLocaleString("default", { month: "long" }).toUpperCase();
 const year = now.getFullYear();
 const monthIndex = now.getMonth();
 const todayDate = now.getDate();
 
-const firstDay = new Date(year, monthIndex, 1).getDay(); // 0=Sun
+const firstDay = new Date(year, monthIndex, 1).getDay();
 const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-
 const weekdayLabels = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
 
 let html = `
@@ -128,19 +158,22 @@ let html = `
   <div class="grid">
 `;
 
-// blank cells before the 1st
-for (let i = 0; i < firstDay; i++) {
+for(let i=0;i<firstDay;i++){
   html += `<div class="day"></div>`;
 }
 
-// days
-for (let d = 1; d <= daysInMonth; d++) {
+for(let d=1; d<=daysInMonth; d++){
   const cls = d === todayDate ? "day today" : "day";
   html += `<div class="${cls}"><span>${d}</span></div>`;
 }
 
-html += `</div><div class="divider"></div>`;
-cal.innerHTML = html;
+html += `</div>
+  <div class="divider"></div>
+  <div class="controls" onclick="toggleTheme()">♡ theme</div>
+`;
+
+document.getElementById("calendar").innerHTML = html;
 </script>
 </body>
 </html>
+
