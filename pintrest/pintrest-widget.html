@@ -3,38 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pinterest Seamless Grid</title>
-
+<title>Pinterest Feed Widget</title>
 <style>
 html, body {
   margin: 0;
   padding: 0;
-  background: transparent;
   overflow-x: hidden;
+  background: transparent;
 }
-
-/* Full-bleed container */
 .wrap {
   width: 100%;
-  max-width: 100%;
-  border: 0;
   margin: 0;
   padding: 0;
-  background: transparent;
 }
-
-/* Helps Notion dark/light coexist */
-:root {
-  color-scheme: light dark;
-}
+:root { color-scheme: light dark; }
 </style>
 </head>
-
 <body>
 
 <div class="wrap">
-
-  <!-- Pinterest profile pins grid -->
   <a
     data-pin-do="embedUser"
     data-pin-board-width="1200"
@@ -42,7 +29,6 @@ html, body {
     data-pin-scale-width="140"
     href="https://www.pinterest.com/ImagineYazming/"
   ></a>
-
 </div>
 
 <script async defer src="https://assets.pinterest.com/js/pinit.js"></script>
