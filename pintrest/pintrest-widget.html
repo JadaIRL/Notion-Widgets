@@ -1,37 +1,66 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pinterest Feed Widget</title>
-<style>
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  background: transparent;
-}
-.wrap {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-:root { color-scheme: light dark; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pinterest Grid Widget</title>
+
+  <style>
+    /* 1) Zero everything out so Notion embed has NO frame */
+    html, body {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      overflow-x: hidden;
+    }
+
+    /* 2) Theme variables (auto-switch via prefers-color-scheme) */
+    :root{
+      --bg: transparent;
+      --pad: 0px;          /* set to 0 for true edge-to-edge */
+      --radius: 0px;       /* set to 0 for borderless */
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root{
+        /* If you want the widget area to blend into Notion dark,
+           set a subtle dark background. Keep transparent if you want it to inherit. */
+        --bg: transparent; /* or #0b0b0b */
+      }
+    }
+
+    /* 3) The wrapper is full width, no borders */
+    .wrap {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: var(--pad);
+      border: 0;
+      background: var(--bg);
+      border-radius: var(--radius);
+      box-sizing: border-box;
+    }
+
+    /* Optional: small padding only on tiny screens */
+    @media (max-width: 420px){
+      .wrap { padding: 6px; }
+    }
+  </style>
 </head>
+
 <body>
+  <div class="wrap">
+    <!-- Profile embed (your pins feed) -->
+    <a
+      data-pin-do="embedUser"
+      data-pin-board-width="1200"
+      data-pin-scale-height="900"
+      data-pin-scale-width="140"
+      href="https://www.pinterest.com/ImagineYazming/"
+    ></a>
+  </div>
 
-<div class="wrap">
-  <a
-    data-pin-do="embedUser"
-    data-pin-board-width="1200"
-    data-pin-scale-height="900"
-    data-pin-scale-width="140"
-    href="https://www.pinterest.com/ImagineYazming/"
-  ></a>
-</div>
-
-<script async defer src="https://assets.pinterest.com/js/pinit.js"></script>
-
+  <script async defer src="https://assets.pinterest.com/js/pinit.js"></script>
 </body>
 </html>
