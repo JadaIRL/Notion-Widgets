@@ -1,1 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pinterest Grid</title>
+
+  <style>
+    /* Borderless / Notion-friendly */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+
+    :root {
+      --gap: 10px;
+      --radius: 14px;
+    }
+
+    .wrap {
+      padding: 0;           /* no outer padding = “borderless” look */
+      margin: 0;
+    }
+
+    /* 4-column grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--gap);
+    }
+
+    /* Responsive (Notion embeds can get narrow) */
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 650px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .pin {
+      display: block;
+      text-decoration: none;
+      line-height: 0;
+      border: 0;
+      outline: none;
+    }
+
+    .pin img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: var(--radius);
+      border: none;         /* no borders */
+      box-shadow: none;     /* no “card” look */
+    }
+
+    /* Optional: subtle hover without adding borders */
+    .pin:hover img {
+      filter: brightness(0.98);
+      transform: translateY(-1px);
+      transition: 140ms ease;
+    }
+
+    .status {
+      padding: 10px 0;
+      font-size: 12px;
+      opacity: 0.75;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div id="status" class="status">Loading pins…</div>
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <script>
+    /**
+     * Choose ONE:
+     * 1) Profile feed (recommended): https://www.pinterest.com/ImagineYazming/feed.rss
+     * 2) Board feed format:          https://www.pinterest.com/ImagineYazming/<board>.rss
+     *
+     * Note: Your link provided is /ImagineYazming/_pins/
+     * Pinterest’s RSS format doesn’t always mirror that exact URL, so profile feed is safest.
+     */
+    const PINTEREST_RSS = "https://www.pinterest.com/ImagineYazming/feed.rss";
+
+    // CORS-friendly text proxy (helps inside Notion embeds)
+    const PROXY = (url) => `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`;
+
+    const MAX_PINS = 24; // adjust
+    const grid = document.getElementById("grid");
+    const statusEl = document.getElementById("status");
+
+    function pickImageFromItem(item) {
+      // Try media:content
+      const media = item.getElementsByTagName("media:content");
+      if (media && media[0] && media[0].getAttribute("url")) return media[0].getAttribute("url");
+
+      // Try enclosure
+      const enclosure = item.getElementsByTagName("enclosure");
+      if (enclosure && enclosure[0] && enclosure[0].getAttribute("url")) return enclosure[0].getAttribute("url");
+
+      // Try media:thumbnail
+      const thumb = item.getElementsByTagName("media:thumbnail");
+      if (thumb && thumb[0] && thumb[0].getAttribute("url")) return thumb[0].getAttribute("url");
+
+      return null;
+    }
+
+    async function loadPins() {
+      try {
+        const res = await fetch(PROXY(PINTEREST_RSS));
+        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+        const text = await res.text();
+
+        const xml = new DOMParser().parseFromString(text, "text/xml");
+        const items = Array.from(xml.getElementsByTagName("item")).slice(0, MAX_PINS);
+
+        grid.innerHTML = "";
+
+        let count = 0;
+        for (const item of items) {
+          const linkEl = item.getElementsByTagName("link")[0];
+          const link = linkEl ? linkEl.textContent.trim() : "#";
+
+          const imgUrl = pickImageFromItem(item);
+          if (!imgUrl) continue;
+
+          const a = document.createElement("a");
+          a.className = "pin";
+          a.href = link;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+
+          const img = document.createElement("img");
+          img.loading = "lazy";
+          img.src = imgUrl;
+          img.alt = "Pinterest pin";
+
+          a.appendChild(img);
+          grid.appendChild(a);
+          count++;
+        }
+
+        statusEl.textContent = count ? "" : "No pins found (RSS may be private or blocked).";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent =
+          "Couldn’t load pins. If this keeps happening, try hosting on GitHub Pages + ensure the feed is public.";
+      }
+    }
+
+    loadPins();
+  </script>
+</body>
+</html>
 
